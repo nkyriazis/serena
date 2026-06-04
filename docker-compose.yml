@@ -24,18 +24,35 @@ services:
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
-        # Configure external .serena storage (outside project dirs, allowing :ro mounts)
+        echo "=== [1/3] Writing global config (external .serena storage) ==="
         python3 /opt/serena-init/init_config.py
 
+        echo "=== [2/3] Registering projects (may take a minute for large repos) ==="
         # Register each mounted directory as a Serena project
         # project_serena_folder_location ensures .serena data goes to external path
+        # Skip if already registered (survives restarts).
+        # yes y accepts all detected languages — enables full symbol retrieval.
         for d in /workspace/*/; do
           if [ -d "$$d" ]; then
-            printf "N\nN\nN\nN\nN\n" | serena project create "$$d"
+            name=$$(basename "$$d")
+            if [ ! -f "/workspaces/serena/config/projects/$$name/.serena/project.yml" ]; then
+              echo "  >> Registering $$name ..."
+              yes y | serena project create "$$d" 2>&1 || echo "  !! $$name registration failed (will retry on next start)"
+            else
+              echo "  >> Skipping $$name (already registered)"
+            fi
           fi
         done
+
+        echo "=== [3/3] Starting MCP server ==="
         # Start MCP server with query-projects mode for project discovery tools
         serena start-mcp-server --transport streamable-http --port 9121 --host 0.0.0.0 --mode query-projects
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost',9121)); s.close()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 volumes:
   serena-config:
