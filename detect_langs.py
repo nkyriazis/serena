@@ -15,7 +15,7 @@ from pathlib import Path
 SAFE_LANGUAGES = frozenset({
     "python", "typescript", "bash", "json",
     "yaml", "markdown", "html", "toml",
-    "vue", "svelte", "java", "c", "cpp", "go", "rust",
+    "vue", "svelte", "java", "cpp", "go", "rust",
     "ruby", "php", "swift", "kotlin", "scala", "lua",
     "terraform", "zig", "r", "perl", "clojure", "dart",
     "crystal", "cue", "nix", "erlang", "ocaml", "fsharp",
@@ -39,7 +39,8 @@ EXT_TO_LANG = {
     ".vue": "vue",
     ".svelte": "svelte",
     ".java": "java",
-    ".c": "c", ".h": "c",
+    # Serena has no 'c' language — cpp LSP covers both C and C++
+    ".c": "cpp", ".h": "cpp",
     ".cpp": "cpp", ".hpp": "cpp", ".cc": "cpp", ".cxx": "cpp",
     ".go": "go",
     ".rs": "rust",
