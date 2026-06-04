@@ -1,0 +1,26 @@
+# Serena MCP server — project mounts override
+# Mounts the Seavista workspace (multiple repos) read-only for Serena to index.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.projects.yml up -d
+
+services:
+  serena:
+    volumes:
+      # Base config volume (inherited from base compose)
+      - serena-config:/workspaces/serena/config
+      # Mount projects under /workspace/
+      # Each subdirectory becomes a Serena-activatable project.
+      # Note: not :ro — Serena writes .serena/project.yml and index cache inside each project.
+      # It does not modify source files.
+      - ../seavista-core:/workspace/seavista-core
+      - ../seavista-simulator:/workspace/seavista-simulator
+      - ../seavista-triton:/workspace/seavista-triton
+      - ../seavista-ops-view:/workspace/seavista-ops-view
+      - ../seavista-ops-relay:/workspace/seavista-ops-relay
+      - ../seavista-ops-awareness:/workspace/seavista-ops-awareness
+      - ../seavista-ray-orchestrator:/workspace/seavista-ray-orchestrator
+      - ../seavista-tracklets:/workspace/seavista-tracklets
+      - ../seavista-seq2seq:/workspace/seavista-seq2seq
+      - ../Seavista_Layers:/workspace/Seavista_Layers
+      # Add/remove projects as needed

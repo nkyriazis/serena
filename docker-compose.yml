@@ -1,0 +1,35 @@
+# Serena MCP server — base compose
+# Provides the server skeleton; projects are mounted via override.
+#
+# Start (with override):
+#   docker compose -f docker-compose.yml -f docker-compose.projects.yml up -d
+#
+# MCP endpoint:      http://localhost:${SERENA_PORT:-9121}/mcp
+# Web dashboard:     http://localhost:${SERENA_DASHBOARD_PORT:-24282}/dashboard
+
+services:
+  serena:
+    image: ghcr.io/oraios/serena:latest
+    container_name: seavista-serena
+    ports:
+      - "${SERENA_PORT:-9121}:9121"
+      - "${SERENA_DASHBOARD_PORT:-24282}:24282"
+    environment:
+      - SERENA_DOCKER=1
+    volumes:
+      # Persist Serena config/session across restarts
+      - serena-config:/workspaces/serena/config
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        # Register each mounted directory as a Serena project
+        for d in /workspace/*/; do
+          if [ -d $$d ] && [ ! -f $$d.serena/project.yml ]; then
+            printf "N\nN\nN\nN\nN\n" | serena project create $$d
+          fi
+        done
+        # Start MCP server with query-projects mode for project discovery tools
+        serena start-mcp-server --transport streamable-http --port 9121 --host 0.0.0.0 --mode query-projects
+
+volumes:
+  serena-config:
