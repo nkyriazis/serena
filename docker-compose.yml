@@ -19,9 +19,9 @@ services:
     volumes:
       # Persist Serena config/session across restarts
       - serena-config:/workspaces/serena/config
-      # Init scripts for configuration and language detection
+      # Init scripts
       - ./init_config.py:/opt/serena-init/init_config.py:ro
-      - ./detect_langs.py:/opt/serena-init/detect_langs.py:ro
+      - ./prune_langs.py:/opt/serena-init/prune_langs.py:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
@@ -29,24 +29,18 @@ services:
         python3 /opt/serena-init/init_config.py
 
         echo "=== [2/3] Registering projects (may take a minute for large repos) ==="
-        # Register each mounted directory as a Serena project
-        # project_serena_folder_location ensures .serena data goes to external path
-        # Skip if already registered (survives restarts).
-        # Use detect_langs.py to pick safe languages (no interactive prompts,
-        # no languages missing runtimes like powershell).
+        # Register each mounted directory as a Serena project.
+        # Let Serena auto-detect languages (yes y accepts all), then prune
+        # languages without runtimes in the container (powershell, elixir, etc.).
         count=0
         for d in /workspace/*/; do
           if [ -d "$$d" ]; then
             name=$$(basename "$$d")
             if [ ! -f "/workspaces/serena/config/projects/$$name/.serena/project.yml" ]; then
               echo "  >> Registering $$name ..."
-              lang_args=$$(python3 /opt/serena-init/detect_langs.py "$$d")
-              if [ -n "$$lang_args" ]; then
-                serena project create "$$d" $$lang_args 2>&1 || echo "  !! $$name registration failed (will retry on next start)"
-              else
-                # No safe languages detected — fallback to auto-detect with yes y
-                yes y | serena project create "$$d" 2>&1 || echo "  !! $$name registration failed (will retry on next start)"
-              fi
+              yes y | serena project create "$$d" 2>&1 || echo "  !! $$name registration failed (will retry on next start)"
+              # Prune languages without runtimes from the generated project.yml
+              python3 /opt/serena-init/prune_langs.py "/workspaces/serena/config/projects/$$name/.serena/project.yml" 2>/dev/null || true
             else
               echo "  >> Skipping $$name (already registered)"
             fi
