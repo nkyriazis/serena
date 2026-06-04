@@ -41,7 +41,12 @@ services:
             if [ ! -f "/workspaces/serena/config/projects/$$name/.serena/project.yml" ]; then
               echo "  >> Registering $$name ..."
               lang_args=$$(python3 /opt/serena-init/detect_langs.py "$$d")
-              serena project create "$$d" $$lang_args 2>&1 || echo "  !! $$name registration failed (will retry on next start)"
+              if [ -n "$$lang_args" ]; then
+                serena project create "$$d" $$lang_args 2>&1 || echo "  !! $$name registration failed (will retry on next start)"
+              else
+                # No safe languages detected — fallback to auto-detect with yes y
+                yes y | serena project create "$$d" 2>&1 || echo "  !! $$name registration failed (will retry on next start)"
+              fi
             else
               echo "  >> Skipping $$name (already registered)"
             fi
