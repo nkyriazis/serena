@@ -32,6 +32,7 @@ services:
         # project_serena_folder_location ensures .serena data goes to external path
         # Skip if already registered (survives restarts).
         # yes y accepts all detected languages — enables full symbol retrieval.
+        count=0
         for d in /workspace/*/; do
           if [ -d "$$d" ]; then
             name=$$(basename "$$d")
@@ -41,8 +42,10 @@ services:
             else
               echo "  >> Skipping $$name (already registered)"
             fi
+            count=$$((count + 1))
           fi
         done
+        echo "  [$$count projects found in /workspace/]"
 
         echo "=== [3/3] Starting MCP server ==="
         # Start MCP server with query-projects mode for project discovery tools
