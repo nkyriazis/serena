@@ -19,8 +19,9 @@ services:
     volumes:
       # Persist Serena config/session across restarts
       - serena-config:/workspaces/serena/config
-      # Init script for external .serena storage configuration
+      # Init scripts for configuration and language detection
       - ./init_config.py:/opt/serena-init/init_config.py:ro
+      - ./detect_langs.py:/opt/serena-init/detect_langs.py:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
@@ -31,14 +32,16 @@ services:
         # Register each mounted directory as a Serena project
         # project_serena_folder_location ensures .serena data goes to external path
         # Skip if already registered (survives restarts).
-        # yes y accepts all detected languages — enables full symbol retrieval.
+        # Use detect_langs.py to pick safe languages (no interactive prompts,
+        # no languages missing runtimes like powershell).
         count=0
         for d in /workspace/*/; do
           if [ -d "$$d" ]; then
             name=$$(basename "$$d")
             if [ ! -f "/workspaces/serena/config/projects/$$name/.serena/project.yml" ]; then
               echo "  >> Registering $$name ..."
-              yes y | serena project create "$$d" 2>&1 || echo "  !! $$name registration failed (will retry on next start)"
+              lang_args=$$(python3 /opt/serena-init/detect_langs.py "$$d")
+              serena project create "$$d" $$lang_args 2>&1 || echo "  !! $$name registration failed (will retry on next start)"
             else
               echo "  >> Skipping $$name (already registered)"
             fi
