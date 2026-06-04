@@ -22,6 +22,7 @@ services:
       # Init scripts
       - ./init_config.py:/opt/serena-init/init_config.py:ro
       - ./prune_langs.py:/opt/serena-init/prune_langs.py:ro
+      - ./works_in_container.json:/opt/serena-init/works_in_container.json:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
@@ -40,7 +41,7 @@ services:
               echo "  >> Registering $$name ..."
               yes y | serena project create "$$d" 2>&1 || echo "  !! $$name registration failed (will retry on next start)"
               # Prune languages without runtimes from the generated project.yml
-              python3 /opt/serena-init/prune_langs.py "/workspaces/serena/config/projects/$$name/.serena/project.yml" 2>/dev/null || true
+              python3 /opt/serena-init/prune_langs.py "/workspaces/serena/config/projects/$$name/.serena/project.yml" /opt/serena-init/works_in_container.json || true
             else
               echo "  >> Skipping $$name (already registered)"
             fi

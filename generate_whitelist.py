@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""Generate works_in_container.json from Serena's own source.
+
+Classifies each language server by its dependency mechanism:
+  - uvx: self-contained PyPI package (always works)
+  - npm: uses build_npm_install_command (works if node+npm present)
+  - download: has RuntimeDependency or _download_ method (works if binary downloadable)
+  - host: needs external runtime like java, dotnet, pwsh (fails without it)
+
+Writes works_in_container.json with the whitelist of working languages.
+
+Usage: generate_whitelist.py <output.json>
+"""
+import json
+import os
+import re
+import shutil
+import sys
+
+
+def classify_server(filepath: str) -> str | None:
+    """Classify a language server file by its dependency mechanism.
+
+    Returns one of: 'uvx', 'npm', 'download', 'host', or None if not a server.
+    """
+    with open(filepath) as f:
+        content = f.read()
+
+    # Must have _create_dependency_provider to be a server
+    if "_create_dependency_provider" not in content:
+        return None
+
+    # 1. uvx-based (self-contained PyPI)
+    if "LanguageServerDependencyProviderUvx" in content:
+        return "uvx"
+
+    # 2. npm-managed
+    if "build_npm_install_command" in content or "npm_install" in content:
+        return "npm"
+
+    # 3. Downloadable binary (RuntimeDependency with URL, or _download_ method)
+    if "RuntimeDependency" in content:
+        # Has RuntimeDependency — check if it downloads from a URL
+        if "url" in content.lower() or "https://" in content or "http://" in content:
+            return "download"
+        if "_download_" in content:
+            return "download"
+
+    # 4. Host runtime required (references java, dotnet, pwsh, etc.)
+    host_runtimes = ["pwsh", "dotnet ", "java ", "mono", "ruby ", "php ",
+                     "swiftc", "kotlin ", "elixir", "iex", "beam",
+                     "haskell", "ghc", "ocaml", "fsharp", "fsautocomplete",
+                     "crystal", "nim", "v ", "dmd", "idris", "purescript",
+                     "reason", "rescript", "tclsh", "cobc", "apex",
+                     "gleam", "erl", "mix "]
+    for rt in host_runtimes:
+        if rt in content:
+            return "host"
+
+    # Default: assume it needs a host runtime
+    return "host"
+
+
+def get_language_for_server(filepath: str) -> str | None:
+    """Extract the Language enum value from a server file."""
+    with open(filepath) as f:
+        content = f.read()
+
+    # Look for Language.XXX in get_ls_class or similar
+    m = re.search(r"Language\.(\w+)", content)
+    if m:
+        return m.group(1).lower()
+    return None
+
+
+def generate(ls_dir: str) -> list[str]:
+    """Scan language server files and return whitelist of working languages."""
+    available = {
+        "node": shutil.which("node") is not None,
+        "npm": shutil.which("npm") is not None,
+        "python3": shutil.which("python3") is not None,
+        "uv": shutil.which("uv") is not None,
+        "uvx": shutil.which("uvx") is not None,
+    }
+
+    whitelist = set()
+    results = {}
+
+    for fname in sorted(os.listdir(ls_dir)):
+        if not fname.endswith(".py") or fname.startswith("_"):
+            continue
+
+        filepath = os.path.join(ls_dir, fname)
+        classification = classify_server(filepath)
+        if classification is None:
+            continue
+
+        lang = get_language_for_server(filepath)
+        if not lang:
+            lang = fname.replace("_language_server", "").replace("_server", "").replace("_ls", "")
+
+        works = False
+        if classification == "uvx":
+            works = available["python3"] and (available["uv"] or available["uvx"])
+        elif classification == "npm":
+            works = available["node"] and available["npm"]
+        elif classification == "download":
+            works = True  # Downloadable binaries work
+        # 'host' — needs external runtime, doesn't work
+
+        results[lang] = {"class": classification, "works": works}
+        if works:
+            whitelist.add(lang)
+
+    # Print classification summary for debugging
+    for lang, info in sorted(results.items()):
+        mark = "+" if info["works"] else "-"
+        print(f"  {mark} {lang:20s} ({info['class']})")
+
+    return sorted(whitelist)
+
+
+if __name__ == "__main__":
+    ls_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..", "..", "src", "solidlsp", "language_servers"
+    )
+
+    # Fallback: try the Serena install path
+    if not os.path.isdir(ls_dir):
+        ls_dir = "/workspaces/serena/src/solidlsp/language_servers"
+
+    if not os.path.isdir(ls_dir):
+        print(f"Error: language_servers directory not found at {ls_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    whitelist = generate(ls_dir)
+
+    output = {
+        "description": "Languages whose LSP servers work in the Serena container.",
+        "derived_from": "solidlsp/language_servers/ — auto-generated by generate_whitelist.py",
+        "languages": whitelist,
+    }
+
+    output_path = sys.argv[1] if len(sys.argv) > 1 else "works_in_container.json"
+    with open(output_path, "w") as f:
+        json.dump(output, f, indent=2)
+        f.write("\n")
+
+    print(f"\nWrote {len(whitelist)} languages to {output_path}")

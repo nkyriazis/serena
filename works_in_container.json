@@ -1,0 +1,28 @@
+{
+  "description": "Languages whose LSP servers work in the Serena container.",
+  "derived_from": "solidlsp/language_servers/ — check _create_dependency_provider() and RuntimeDependency usage",
+  "runtimes_available": ["node", "npm", "python3", "uv", "uvx"],
+  "languages": [
+    "ansible",
+    "angular",
+    "bash",
+    "cpp",
+    "fortran",
+    "go",
+    "html",
+    "json",
+    "lua",
+    "markdown",
+    "python",
+    "python_ty",
+    "rust",
+    "scss",
+    "svelte",
+    "terraform",
+    "toml",
+    "typescript",
+    "vue",
+    "yaml",
+    "zig"
+  ]
+}
