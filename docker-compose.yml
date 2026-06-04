@@ -19,13 +19,19 @@ services:
     volumes:
       # Persist Serena config/session across restarts
       - serena-config:/workspaces/serena/config
+      # Init script for external .serena storage configuration
+      - ./init_config.py:/opt/serena-init/init_config.py:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
+        # Configure external .serena storage (outside project dirs, allowing :ro mounts)
+        python3 /opt/serena-init/init_config.py
+
         # Register each mounted directory as a Serena project
+        # project_serena_folder_location ensures .serena data goes to external path
         for d in /workspace/*/; do
-          if [ -d $$d ] && [ ! -f $$d.serena/project.yml ]; then
-            printf "N\nN\nN\nN\nN\n" | serena project create $$d
+          if [ -d "$$d" ]; then
+            printf "N\nN\nN\nN\nN\n" | serena project create "$$d"
           fi
         done
         # Start MCP server with query-projects mode for project discovery tools

@@ -9,18 +9,18 @@ services:
     volumes:
       # Base config volume (inherited from base compose)
       - serena-config:/workspaces/serena/config
-      # Mount projects under /workspace/
-      # Each subdirectory becomes a Serena-activatable project.
-      # Note: not :ro — Serena writes .serena/project.yml and index cache inside each project.
-      # It does not modify source files.
-      - ../seavista-core:/workspace/seavista-core
-      - ../seavista-simulator:/workspace/seavista-simulator
-      - ../seavista-triton:/workspace/seavista-triton
-      - ../seavista-ops-view:/workspace/seavista-ops-view
-      - ../seavista-ops-relay:/workspace/seavista-ops-relay
-      - ../seavista-ops-awareness:/workspace/seavista-ops-awareness
-      - ../seavista-ray-orchestrator:/workspace/seavista-ray-orchestrator
-      - ../seavista-tracklets:/workspace/seavista-tracklets
-      - ../seavista-seq2seq:/workspace/seavista-seq2seq
-      - ../Seavista_Layers:/workspace/Seavista_Layers
+      # Mount projects under /workspace/ (read-only)
+      # .serena data stored externally via project_serena_folder_location in global config.
+      # External path: /workspaces/serena/config/projects/<folder_name>/.serena/
+      # All project metadata and indexes persist in the serena-config volume.
+      - ../seavista-core:/workspace/seavista-core:ro
+      - ../seavista-simulator:/workspace/seavista-simulator:ro
+      - ../seavista-triton:/workspace/seavista-triton:ro
+      - ../seavista-ops-view:/workspace/seavista-ops-view:ro
+      - ../seavista-ops-relay:/workspace/seavista-ops-relay:ro
+      - ../seavista-ops-awareness:/workspace/seavista-ops-awareness:ro
+      - ../seavista-ray-orchestrator:/workspace/seavista-ray-orchestrator:ro
+      - ../seavista-tracklets:/workspace/seavista-tracklets:ro
+      - ../seavista-seq2seq:/workspace/seavista-seq2seq:ro
+      - ../Seavista_Layers:/workspace/Seavista_Layers:ro
       # Add/remove projects as needed
