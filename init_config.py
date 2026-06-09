@@ -4,6 +4,9 @@
 Mount this script into the container and run it before 'serena project create'.
 Sets project_serena_folder_location so .serena data lives outside project dirs,
 allowing read-only (:ro) mounts for the source repositories.
+
+Overwrites on every restart — each restart reflects a fresh view of mounted projects.
+The projects list is populated by sync_projects.py after 'serena project create'.
 """
 import os
 
@@ -18,7 +21,7 @@ def main():
         "# Project metadata stored externally to allow read-only repo mounts\n"
         'project_serena_folder_location: "/workspaces/serena/config/projects/$projectFolderName/.serena"\n'
         "\n"
-        "# Registered projects (populated at startup)\n"
+        "# Registered projects (populated by sync_projects.py)\n"
         "projects: []\n"
     )
     with open(CONFIG_PATH, "w") as f:

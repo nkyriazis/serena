@@ -22,8 +22,9 @@ services:
       # Init scripts
       - ./init_config.py:/opt/serena-init/init_config.py:ro
       - ./prune_langs.py:/opt/serena-init/prune_langs.py:ro
+      - ./sync_projects.py:/opt/serena-init/sync_projects.py:ro
       - ./works_in_container.json:/opt/serena-init/works_in_container.json:ro
-    entrypoint: ["/bin/bash", "-c"]
+    entrypoint: [ "/bin/bash", "-c" ]
     command:
       - |
         echo "=== [1/3] Writing global config (external .serena storage) ==="
@@ -50,11 +51,17 @@ services:
         done
         echo "  [$$count projects found in /workspace/]"
 
+        echo "=== [2.5/3] Syncing projects list in global config ==="
+        # Ensure all on-disk projects are in the global config's projects list.
+        # init_config.py preserves the list on restart, but serena project create
+        # may not have added new projects to it. This step bridges the gap.
+        python3 /opt/serena-init/sync_projects.py
+
         echo "=== [3/3] Starting MCP server ==="
         # Start MCP server with query-projects mode for project discovery tools
         serena start-mcp-server --transport streamable-http --port 9121 --host 0.0.0.0 --mode query-projects
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost',9121)); s.close()\""]
+      test: [ "CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost',9121)); s.close()\"" ]
       interval: 10s
       timeout: 5s
       retries: 3
